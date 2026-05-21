@@ -31,208 +31,200 @@ Step 7: Save and run the application.
 /*
 Program to print the DatabaseTable using the firebasedatabase”.
 Developed by: Kavi M S
-Registeration Number :212223220044
+Registeration Number : 212223220044
 */
 ```
-
-
-## ACtivityMain.xml
-
+### AndroidManifest.xml
+```xml
+<uses-permission android:name="android.permission.INTERNET" />
 ```
-<?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:padding="20dp">
+### Emp.class
+```java
+package com.example.ex_01_realtimedatabase;
 
-    <!-- USER ID -->
-    <EditText
-        android:id="@+id/editTextID"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="User ID"
-        android:inputType="number" />
+import com.google.firebase.database.IgnoreExtraProperties;
 
-    <!-- USER NAME -->
-    <EditText
-        android:id="@+id/editTextUserName"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="User Name"
-        android:inputType="textPersonName" />
+@IgnoreExtraProperties
+public class Emp {
+    public String name;
+    public String age;
+    public String salary;
 
-    <!-- PASSWORD -->
-    <EditText
-        android:id="@+id/editTextPassword"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="Password"
-        android:inputType="textPassword" />
+    public Emp() {
+        // Default constructor required for calls to DataSnapshot.getValue(Emp.class)
+    }
 
-    <!-- INSERT BUTTON -->
-    <Button
-        android:id="@+id/btnInsert"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="INSERT"
-        android:onClick="btnInsertPressed" />
-
-    <!-- FETCH BUTTON -->
-    <Button
-        android:id="@+id/btnFetch"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="FETCH"
-        android:onClick="btnFetchPressed" />
-
-    <!-- UPDATE BUTTON -->
-    <Button
-        android:id="@+id/btnUpdate"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="UPDATE"
-        android:onClick="btnUpdatePressed" />
-
-    <!-- DELETE BUTTON -->
-    <Button
-        android:id="@+id/btnDelete"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="DELETE"
-        android:onClick="btnDeletePressed" />
-
-</LinearLayout>
-
+    public Emp(String name, String age, String salary) {
+        this.name = name;
+        this.age = age;
+        this.salary = salary;
+    }
+}
 ```
+### MainActivity
+```java
+package com.example.ex_01_realtimedatabase;
 
-## Activitymain.java
-
-```
-package com.example.pmdex1;
-
-import androidx.appcompat.app.AppCompatActivity;
-
-import android.annotation.SuppressLint;
-import android.database.Cursor;
 import android.os.Bundle;
-import android.util.Log;
-import android.view.View;
-import android.widget.EditText;
-import android.widget.Toast;
+import android.widget.*;
+import androidx.appcompat.app.AppCompatActivity;
+import com.google.firebase.database.*;
+import java.util.*;
 
 public class MainActivity extends AppCompatActivity {
-
-    EditText editUserID, editUserName, editUserPassword;
-    DatabaseManager dbManager;
+    EditText etName, etAge, etSalary;
+    Button btnAdd, btnUpdate, btnDelete;
+    ListView listView;
+    DatabaseReference dbRef;
+    ArrayList<String> items = new ArrayList<>();
+    ArrayList<String> keys = new ArrayList<>();
+    ArrayAdapter<String> adapter;
+    String selectedKey = null;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        editUserID = findViewById(R.id.editTextID);
-        editUserName = findViewById(R.id.editTextUserName);
-        editUserPassword = findViewById(R.id.editTextPassword);
+        etName = findViewById(R.id.etName);
+        etAge = findViewById(R.id.etAge);
+        etSalary = findViewById(R.id.etSalary);
+        btnAdd = findViewById(R.id.btnAdd);
+        btnUpdate = findViewById(R.id.btnUpdate);
+        btnDelete = findViewById(R.id.btnDelete);
+        listView = findViewById(R.id.listView);
 
-        dbManager = new DatabaseManager(this);
+        dbRef = FirebaseDatabase.getInstance().getReference("Employees");
+        adapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, items);
+        listView.setAdapter(adapter);
 
-        try {
-            dbManager.open();
-        } catch (Exception e) {
-            Log.e("DB_ERROR", "Error opening database", e);
-        }
-    }
-
-    // INSERT
-    public void btnInsertPressed(View v) {
-        String name = editUserName.getText().toString();
-        String password = editUserPassword.getText().toString();
-
-        if (name.isEmpty() || password.isEmpty()) {
-            Toast.makeText(this, "Enter all fields", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        dbManager.insert(name, password);
-        Toast.makeText(this, "Inserted Successfully", Toast.LENGTH_SHORT).show();
-    }
-
-    // FETCH
-    public void btnFetchPressed(View v) {
-        try (Cursor cursor = dbManager.fetch()) {
-
-            if (cursor != null && cursor.moveToFirst()) {
-
-                do {
-                    @SuppressLint("Range")
-                    String id = cursor.getString(cursor.getColumnIndex(DatabaseHelper.USER_ID));
-
-                    @SuppressLint("Range")
-                    String username = cursor.getString(cursor.getColumnIndex(DatabaseHelper.USER_NAME));
-
-                    @SuppressLint("Range")
-                    String password = cursor.getString(cursor.getColumnIndex(DatabaseHelper.USER_PASSWORD));
-
-                    Log.i("DB_DATA", "ID: " + id + " Name: " + username + " Password: " + password);
-
-                } while (cursor.moveToNext());
-
-            } else {
-                Toast.makeText(this, "No Data Found", Toast.LENGTH_SHORT).show();
+        dbRef.addValueEventListener(new ValueEventListener() {
+            @Override
+            public void onDataChange(DataSnapshot snapshot) {
+                items.clear(); keys.clear();
+                for (DataSnapshot d : snapshot.getChildren()) {
+                    Emp e = d.getValue(Emp.class);
+                    if (e != null) {
+                        items.add(e.name + " | " + e.age + " | " + e.salary);
+                        keys.add(d.getKey());
+                    }
+                }
+                adapter.notifyDataSetChanged();
             }
+            @Override public void onCancelled(DatabaseError error) {}
+        });
 
-        } catch (Exception e) {
-            Log.e("DB_ERROR", "Fetch error", e);
-        }
+        btnAdd.setOnClickListener(v -> {
+            Emp e = new Emp(etName.getText().toString(), etAge.getText().toString(), etSalary.getText().toString());
+            dbRef.push().setValue(e);
+            clearFields();
+        });
+
+        btnUpdate.setOnClickListener(v -> {
+            if (selectedKey != null) {
+                Emp e = new Emp(etName.getText().toString(), etAge.getText().toString(), etSalary.getText().toString());
+                dbRef.child(selectedKey).setValue(e);
+                clearFields();
+            } else {
+                Toast.makeText(this, "Select an item first", Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        btnDelete.setOnClickListener(v -> {
+            if (selectedKey != null) {
+                dbRef.child(selectedKey).removeValue();
+                clearFields();
+            } else {
+                Toast.makeText(this, "Select an item first", Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        listView.setOnItemClickListener((p, v, pos, id) -> {
+            selectedKey = keys.get(pos);
+            dbRef.child(selectedKey).get().addOnSuccessListener(d -> {
+                Emp e = d.getValue(Emp.class);
+                if (e != null) {
+                    etName.setText(e.name);
+                    etAge.setText(e.age);
+                    etSalary.setText(e.salary);
+                }
+            });
+        });
     }
 
-    // UPDATE
-    public void btnUpdatePressed(View v) {
-        try {
-            long id = Long.parseLong(editUserID.getText().toString());
-            String name = editUserName.getText().toString();
-            String password = editUserPassword.getText().toString();
-
-            dbManager.update(id, name, password);
-            Toast.makeText(this, "Updated Successfully", Toast.LENGTH_SHORT).show();
-
-        } catch (Exception e) {
-            Log.e("DB_ERROR", "Update error", e);
-            Toast.makeText(this, "Invalid ID", Toast.LENGTH_SHORT).show();
-        }
-    }
-
-    // DELETE
-    public void btnDeletePressed(View v) {
-        try {
-            long id = Long.parseLong(editUserID.getText().toString());
-
-            dbManager.delete(id);
-            Toast.makeText(this, "Deleted Successfully", Toast.LENGTH_SHORT).show();
-
-        } catch (Exception e) {
-            Log.e("DB_ERROR", "Delete error", e);
-            Toast.makeText(this, "Invalid ID", Toast.LENGTH_SHORT).show();
-        }
-    }
-
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        if (dbManager != null) {
-            dbManager.close();
-        }
+    private void clearFields() {
+        etName.setText(""); etAge.setText(""); etSalary.setText("");
+        selectedKey = null;
     }
 }
 ```
+### activity_main.xml
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <EditText
+        android:id="@+id/etName"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Name" />
+
+    <EditText
+        android:id="@+id/etAge"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Age"
+        android:inputType="number" />
+
+    <EditText
+        android:id="@+id/etSalary"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Salary"
+        android:inputType="number" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/btnAdd"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Add" />
+
+        <Button
+            android:id="@+id/btnUpdate"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Update" />
+
+        <Button
+            android:id="@+id/btnDelete"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Delete" />
+    </LinearLayout>
+
+    <ListView
+        android:id="@+id/listView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+</LinearLayout>
+```
 ## OUTPUT
+<img width="2878" height="1793" alt="image" src="https://github.com/user-attachments/assets/b20e5134-98bb-492e-bad8-dd624ce728ca" />
 
-<img width="1920" height="1200" alt="Screenshot (76)" src="https://github.com/user-attachments/assets/9e4ddb3f-c764-44d9-a259-2cdfda4c5258" />
-
-<img width="1920" height="1200" alt="Screenshot (77)" src="https://github.com/user-attachments/assets/d852a4fc-f476-467c-bc4a-e3a713715931" />
-
-
+<img width="2635" height="1647" alt="image" src="https://github.com/user-attachments/assets/7bfb85c6-ba37-481b-81be-1122e8c2485e" />
 
 
 
